@@ -1,0 +1,91 @@
+Writeup: Obscure Crusher 1
+
+Category: Forensics
+Author: ansh
+Solves: 123
+Points: 309
+Challenge Description
+
+    What if I make it so you need 3 keys to unlock the flag...
+
+    Downloads: chall.bin
+
+Initial Reconnaissance
+
+We are given a tiny file named chall.bin (only about 168 bytes). Given the forensics category and the tiny size, I knew this wasn't a standard disk image or memory dump.
+
+My first step was checking out the raw hex to see what kind of headers we were dealing with:
+Bash
+
+$ xxd chall.bin | head -n 10
+00000000: 6963 6e73 0000 0100 6963 6e73 0100 0000  icns....icns....
+00000010: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+...
+00000040: 0000 0000 0000 0000 0000 0000 006e 616d  .............nam
+00000050: 6500 0874 7466 0278 7900 0000 0000 0000  e..ttf.xy.......
+...
+00000070: 8000 6c7a 6d61 4b4c 5a4d 415f 4441 5441  ..lzmaKLZMA_DATA
+00000080: 3a1d 090d 0767 0f44 0471 1b0c 1e49 3202  :....g.D.q...I2.
+00000090: 391c 1006 4073 2b45 056c 0b26 180e 0b3e  9...@s+E.l.&...>
+000000a0: 2713 0e5d 0e00 0000 00                   '..].....
+
+Right away, three distinct file format markers jump out:
+
+    icns (Apple Icon Image)
+
+    name..ttf (TrueType Font metadata)
+
+    lzma (LZMA Compressed data)
+
+Immediately following the LZMA string, starting at offset 0x81, there is a block of 40 bytes of high-entropy data that looks completely random.
+Payload: 1d 09 0d 07 67 0f 44 04 71 1b 0c 1e 49 32 02 39 1c 10 06 40 73 2b 45 05 6c 0b 26 18 0e 0b 3e 27 13 0e 5d 0e 00 00 00 00
+The Rabbit Hole
+
+The prompt explicitly states: "What if I make it so you need 3 keys..."
+
+Since the file contained exactly three file-format strings, I originally thought this was a polyglot file, or that I had to carve out three separate files to extract passwords. I spent a good chunk of time trying to decompress the LZMA payload directly, reverse it, and XOR it with the strings icns, ttf, and lzma.
+
+I knew the flag had to start with the standard format tjctf{. When I XORed the first 6 bytes of the payload against tjctf{, I got:
+[105, 99, 110, 115, 1, 116] ➔ icns\x01t
+
+It started with icns and hit the t of ttf, but the 5th character (\x01) threw me off. The string was desynchronizing. I realized that the 3 keys weren't just the English words applied on top of each other.
+The Breakthrough
+
+I went back to the original hex dump and looked closely at the bytes exactly where the file format names were located. The author didn't just use words as keys; they used the exact raw byte sequences found in the file headers, including the invisible control characters!
+
+Looking at the hex offsets:
+
+    Key 1 (offset 0x08): 69 63 6e 73 01 ➔ icns\x01 (5 bytes)
+
+    Key 2 (offset 0x53): 74 74 66 02 78 79 ➔ ttf\x02xy (6 bytes)
+
+    Key 3 (offset 0x72): 6c 7a 6d 61 4b ➔ lzmaK (5 bytes)
+
+If you concatenate these 3 exact data blocks together, you get a 16-byte master key:
+icns\x01ttf\x02xylzmaK
+
+The challenge wasn't a real compressed archive at all; it was a custom "Self-XOR" structure where the key to decrypt the payload was literally sitting in plain sight right above it in the file headers.
+The Solution
+
+With the 16-byte master key discovered, I wrote a quick Python script to XOR the random payload block against the concatenated keys.
+
+solve.py:
+Python
+
+# The 40-byte encrypted payload from offset 0x81
+payload = bytes.fromhex('1d090d07670f4404711b0c1e493202391c100640732b45056c0b26180e0b3e27130e5d0e00000000')
+
+# The 3 keys pulled exactly from the file headers (including control chars)
+master_key = b'icns\x01ttf\x02xylzmaK'
+
+# XOR the payload against the 16-byte repeating master key
+flag = bytes([payload[i] ^ master_key[i % len(master_key)] for i in range(len(payload))])
+
+print(flag[:36].decode('utf-8'))
+
+Running the script cleanly unwrapped the bytes and gave the flag!
+
+Flag: tjctf{0bscur3_crush3r_1cns_ttf_lzm3}
+Conclusion
+
+This was a brilliant and super tricky challenge by ansh. It punishes you if you rely too heavily on automated forensic carvers or string extraction, and forces you to stare at the raw hex and do the math yourself. A great lesson in byte-level analysis!
