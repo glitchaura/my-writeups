@@ -1,0 +1,69 @@
+picoCTF Write-up: Operation Orchid
+
+Category: Forensics
+Tools Used: The Sleuth Kit (mmls, fls, icat), strings, openssl
+Flag: picoCTF{h4un71ng_p457_0a710765}
+Challenge Overview
+
+The objective of this forensics challenge is to investigate a provided disk image, locate a hidden or deleted flag file, and find a way to decrypt it.
+Methodology & Steps
+1. Analyzing the Disk Layout with mmls
+
+To begin the investigation, I needed to understand the partition layout of the provided disk image. I used mmls (part of The Sleuth Kit), which displays the layout of the volume system.
+Bash
+
+mmls disk.flag.img
+
+Observation: The output revealed multiple partitions, including two distinct Linux partition tables. By noting the starting sectors (offsets) of these partitions, I could target them individually for deeper inspection.
+2. File System Exploration with fls
+
+With the partition offsets identified, I used fls to list the files and directories within each partition.
+
+First, I checked the first Linux partition:
+Bash
+
+fls -o [offset_1] disk.flag.img
+
+This partition did not contain any items of interest. I then moved on to the second Linux partition:
+Bash
+
+fls -o [offset_2] disk.flag.img
+
+Observation: Scanning through the directory tree of the second partition, I located an interesting file named flag.txt.enc. The .enc extension strongly indicated that the file was encrypted. I made a note of the file's inode number for extraction.
+3. Extracting the Encrypted Flag with icat
+
+To interact with the encrypted file on my local machine, I needed to extract it from the disk image. I used icat, which outputs the contents of a file based on its inode number.
+Bash
+
+icat -o [offset_2] disk.flag.img [inode_number] > flag.txt.enc
+
+I now had the encrypted flag file saved locally, but I needed the encryption key or the exact algorithm used to decrypt it.
+4. Recovering the Encryption Key using strings
+
+Since the file was likely encrypted by a user on the system, there was a high probability that the command used to encrypt it was still lingering in the disk's unallocated space, swap space, or bash history.
+
+To find this, I ran the strings command across the entire raw disk image. I used the -t d flag to print the decimal offset of each string, which is highly useful for context, and piped the output to grep to look for common encryption utilities like openssl.
+Bash
+
+strings -t d disk.flag.img | grep "openssl"
+
+Observation: This search yielded the exact OpenSSL command the user executed to encrypt the flag. The recovered command looked similar to this:
+openssl aes-256-cbc -salt -in flag.txt -out flag.txt.enc -k [password]
+
+(Note: The strings output reveals the specific AES-256-CBC cipher and the plaintext password used via the -k flag).
+5. Decrypting the Flag
+
+Armed with the exact cipher and the password from the previous step, I reversed the operation. I used openssl with the decrypt flag (-d) on my extracted flag.txt.enc file.
+Bash
+
+openssl aes-256-cbc -d -in flag.txt.enc -out flag.txt -k [password]
+
+Reading the output file yielded the flag:
+Bash
+
+cat flag.txt
+picoCTF{h4un71ng_p457_0a710765}
+
+Conclusion
+
+This challenge is a great practical exercise in raw disk forensics. It highlights the importance of analyzing unallocated space and system artifacts (like command history) to recover lost cryptographic keys. Using standard tools from The Sleuth Kit, we successfully navigated the disk structure, extracted the necessary artifacts, and reversed the encryption process to capture the flag.
