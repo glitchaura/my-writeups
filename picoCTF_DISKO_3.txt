@@ -1,0 +1,29 @@
+Writeup: picoCTF – DISKO 3
+
+Category: Forensics
+Objective: Analyze a disk image to locate and extract a hidden flag.
+
+Methodology & Analysis:
+The challenge provides a raw disk image file requiring a deep dive into its file system architecture. Working directly from a native Kali Linux environment, the initial instinct was to map out the partition layout to identify potential hiding spots.
+
+I began the investigation by running mmls against the image to enumerate the volume system and check for unallocated space or hidden partitions.
+
+The Twist: The mmls output proved to be a dead end. The partition table offered no anomalies, suggesting the data wasn't hidden in the volume structure, but rather buried within the active file system itself.
+
+Adapting the strategy, I pivoted to The Sleuth Kit (TSK) to analyze the file and directory names directly. I utilized fls to traverse the directory structure:
+Bash
+
+fls rootfs.ext2
+
+Scanning through the output, an anomaly immediately stood out: a suspicious .gz (gunzip) archive.
+
+To pull the file out of the disk image and onto the local machine for deeper inspection, I noted the file's inode number from the fls output and used icat to extract the raw data:
+Bash
+
+icat rootfs.ext2 <inode_number> > suspicious_file.gz
+
+With the payload successfully transferred to the local host, the final step was decompression. Running a standard gunzip command unpacked the archive, revealing the hidden text file containing the objective.
+
+Flag Found:
+
+    picoCTF{n3v3r_z1p_2_h1d3_7e0a17da}

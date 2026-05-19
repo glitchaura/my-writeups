@@ -1,0 +1,27 @@
+Writeup: picoCTF – DISKO 4
+
+Category: Forensics
+Objective: Recover deliberately destroyed data from a disk image to retrieve the flag.
+
+Methodology & Analysis:
+Following the methodology of the previous challenge, I initiated the analysis of the provided disk image. However, standard traversal techniques yielded no visible payloads. The active file system appeared clean, indicating a classic anti-forensics technique: the threat actor had deleted the staging files to cover their tracks.
+
+The Twist: When the evidence vanishes, a forensic investigator has to rely on digital necromancy.
+
+Knowing that "deleted" files on standard file systems merely have their pointers removed while the underlying data remains intact until overwritten, I consulted the TSK documentation to refine my toolset. The solution was to force fls to display only the deleted directory entries using the -d flag.
+Bash
+
+fls -d rootfs.ext2
+
+This specific query successfully illuminated the ghost files. Among the deleted entries, a deleted .gz archive was identified.
+
+Despite its deleted status, the data blocks were still uncorrupted. I grabbed the deleted file's inode and executed an icat extraction to pull the artifact back into the realm of the living:
+Bash
+
+icat rootfs.ext2 <deleted_inode_number> > recovered_archive.gz
+
+Once the archive was safely isolated on the local machine, a quick gunzip extraction decompressed the payload, exposing the recovered flag.
+
+Flag Found:
+
+    picoCTF{d3l_d0n7_h1d3_w3ll_4fed4369}
