@@ -1,0 +1,102 @@
+CTF Writeup: Forensic Git 0 (picoCTF)
+
+Challenge: Forensic Git 0
+
+Category: Forensics
+
+Tools Used: Sleuth Kit (mmls, fls, tsk_recover), grep, git
+Initial Analysis of the Disk Image
+
+I was provided with a disk image file named disk.img. To start my investigation, I used The Sleuth Kit (TSK) to look at the partition table and figure out what I was dealing with. I ran mmls to list the partitions:
+Bash
+
+$ mmls disk.img
+DOS Partition Table
+Offset Sector: 0
+Units are in 512-byte sectors
+
+      Slot      Start        End          Length       Description
+000:  Meta      0000000000   0000000000   0000000001   Primary Table (#0)
+001:  -------   0000000000   0000002047   0000002048   Unallocated
+002:  000:000   00002048     000616447    000614400    Linux (0x83)
+003:  000:001   000616448    001140735    000524288    Linux Swap / Solaris x86 (0x82)
+004:  000:002   001140736    002097151    000956416    Linux (0x83)
+
+I noticed two Linux partitions and a Swap partition. The largest Linux partition started at offset 1140736, so I decided to investigate that one first.
+
+I used fls to list the deleted files (-r -d) and the root directories:
+Bash
+
+$ fls -o 1140736 disk.img
+...
+d/d 64770:      home
+d/d 11: lost+found
+d/d 64769:      boot
+...
+d/d 65275:      swap
+
+I initially saw a /swap directory at the root (inode 65275), which looked highly suspicious since there was already a dedicated swap partition.
+Extracting the Filesystem
+
+The challenge hint asked: "how do you extract dir". This pointed me toward using tsk_recover to pull files out of the disk image. I first tried extracting the suspicious /swap directory:
+Bash
+
+$ tsk_recover -e -d 65275 -o 1140736 disk.img ./extracted_swap
+Files Recovered: 0
+
+It turned out to be completely empty—a red herring. Realizing I shouldn't waste time guessing which specific directory the flag was in, I decided to extract the entire root filesystem at once so I could search it locally:
+Bash
+
+$ tsk_recover -e -o 1140736 disk.img ./extracted_root
+
+Hunting for the Flag
+
+With the filesystem extracted, I used grep to recursively search for the standard flag format (pico):
+Bash
+
+$ grep -rn "pico" ./extracted_root
+./extracted_root/home/ctf-player/Code/secrets/note.txt:1:The picoCTF flag format is 'picoCTF{}' where there is some leetspeak phrase in between the curly braces
+...
+
+The search didn't give me the flag directly, but it gave me a massive clue: a note.txt file located in /home/ctf-player/Code/secrets/.
+
+I navigated to that directory to see what else was hiding there:
+Bash
+
+$ ls -la ./extracted_root/home/ctf-player/Code/secrets/
+total 0
+drwxrwxrwx 1 turkeytimon turkeytimon 512 May 20 09:15 .
+drwxrwxrwx 1 turkeytimon turkeytimon 512 May 20 09:15 ..
+drwxrwxrwx 1 turkeytimon turkeytimon 512 May 20 09:15 .git
+-rwxrwxrwx 1 turkeytimon turkeytimon 104 May 20 09:15 note.txt
+
+The Git Investigation
+
+Seeing the .git folder immediately clicked with the challenge name: "forensic git 0".
+
+Because grep didn't find the flag in plain text, I knew it must be compressed inside the Git version history. I moved into the directory and used git log -p to view the commit history and the actual changes made to the files:
+Bash
+
+$ cd ./extracted_root/home/ctf-player/Code/secrets/
+$ git log -p
+
+The output showed the following commit:
+Plaintext
+
+commit 327681bb38cf467cec328eec9707b240e3e74ced (HEAD -> master)
+Author: ctf-player <ctf-player@example.com>
+Date:   Wed Nov 19 08:49:27 2025 +0000
+
+    Wrap this phrase in the flag format: g17_1n_7h3_d15k_041217d8
+
+diff --git a/note.txt b/note.txt
+new file mode 100644
+index 0000000..46064ac
+--- /dev/null
++++ b/note.txt
+@@ -0,0 +1 @@
++The picoCTF flag format is 'picoCTF{}' where there is some leetspeak phrase in between the curly braces
+
+The flag wasn't in a deleted file—it was hiding in plain sight inside the commit message itself! Following the instructions from the commit message and note.txt, I wrapped the leetspeak phrase in the standard flag format.
+
+Flag: picoCTF{g17_1n_7h3_d15k_041217d8}
