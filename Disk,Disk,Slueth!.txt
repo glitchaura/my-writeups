@@ -1,0 +1,44 @@
+CTF Write-up: Disk Disk Sleuth!
+Challenge Overview
+
+    Platform: picoCTF
+
+    Category: Forensics
+
+    Objective: Locate a hidden flag within a provided compressed Linux disk image file.
+
+Tools Utilized
+
+    gunzip: For decompressing the GNU zip archive.
+
+    srch_strings (The Sleuth Kit): For extracting printable strings from a binary disk image.
+
+    grep: For pattern matching and filtering standard output.
+
+Methodology
+Step 1: Decompressing the Disk Image
+
+The challenge provides a compressed disk image file (typically named dds1-alpine.flag.img.gz). To analyze the raw bytes of the filesystem, the archive must first be decompressed.
+Bash
+
+gunzip dds1-alpine.flag.img.gz
+
+This extracts the underlying raw disk image file, making it accessible for forensic string analysis.
+Step 2: String Extraction and Pattern Matching
+
+With the raw image extracted, the next step is to scan the binary data for human-readable text. Because picoCTF flags uniformly begin with the picoCTF{ prefix, we can extract all strings from the image and instantly filter the results for our target.
+Bash
+
+srch_strings -t d dds1-alpine.flag.img | grep 'pico'
+
+Command Breakdown:
+
+    srch_strings: A utility from The Sleuth Kit (TSK) that extracts readable strings from a file. It functions similarly to the standard Linux strings command but is highly optimized for forensic disk analysis.
+
+    -t d: Tells the tool to print the exact byte offset of the string in decimal format. While not strictly required just to read the flag, identifying the offset is a standard forensic best practice for verifying exactly where the data resides on the disk.
+
+    | grep 'pico': Pipes the massive list of extracted strings into grep, filtering the output down to only the line containing the flag.
+
+Conclusion
+
+Running the search command immediately outputs the flag to the terminal alongside its decimal offset. This challenge serves as an excellent demonstration of basic static analysis and string extraction on raw disk images, proving that data can be recovered without needing to actively mount the file system.
