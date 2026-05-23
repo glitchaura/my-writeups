@@ -1,0 +1,86 @@
+Challenge Overview
+
+Brutus is a beginner-friendly digital forensics challenge on Hack The Box that focuses on analyzing Linux authentication artifacts. The scenario involves a Confluence server that faces an aggressive SSH brute-force attack. After successfully cracking the password, the threat actor establishes an interactive session, attempts to escalate privileges, and configures a persistence mechanism.
+
+    Category: DFIR (Digital Forensics & Incident Response)
+
+    Difficulty: Very Easy
+
+    Key Artifacts: auth.log, wtmp
+
+Technical Analysis & Walkthrough
+Task 1: Attacker IP Address
+
+To identify the source of the brute-force attack, examine the high volume of failed authentication attempts in auth.log. A rapid succession of connection failures from a specific external IP indicates automated scanning.
+Bash
+
+grep "Failed password" auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -nr
+
+The logs show thousands of authentication failures originating from 65.2.161.68 before a successful login occurs.
+
+    Answer: 65.2.161.68
+
+Task 2: Compromised Target Account
+
+Scroll down past the brute-force attempts to find where the authentication status changes from Failed to Accepted.
+Bash
+
+grep "Accepted password" auth.log
+
+The log displays:
+Mar  6 06:31:40 ip-172-31-35-28 sshd[2411]: Accepted password for root from 65.2.161.68 port 34782 ssh2
+
+The attacker successfully compromised the administrative user account.
+
+    Answer: root
+
+Task 3: Interactive Terminal Session Timestamp (wtmp)
+
+While automated scripts authenticate instantly and drop, a human operator establishing a terminal session generates a pseudo-terminal (pts) allocation event tracked in the wtmp file.
+
+Parsing the wtmp artifact reveals the distinct manual login event matching the attacker's timeline at 2024-03-06 06:32:45.
+
+    Answer: 2024-03-06 06:32:45
+
+Task 4: Assigned Attacker Session Number
+
+When a user authenticates successfully via SSH, systemd-logind assigns a unique session identifier to track the scope of that specific process tree. Looking closely at the log entry when the human interactive session initializes:
+Plaintext
+
+Mar  6 06:32:44 ip-172-31-35-28 systemd-logind[411]: New session 37 of user root.
+
+    Answer: 37
+
+Task 5: Persistence Account Name
+
+Once inside Session 37, the threat actor attempts to maintain access by creating a local user backdoor. You can look for account creation events by searching for system calls such as useradd, new user, or modifications to local group policies.
+Bash
+
+grep -E "new user|useradd" auth.log
+
+The log reveals a new local account configuration:
+Mar  6 06:34:12 ip-172-31-35-28 useradd[2567]: new user: name=cyberjunkie, ...
+
+    Answer: cyberjunkie
+
+Task 6: MITRE ATT&CK Mapping
+
+The creation of a local account to ensure redundant access to a compromised endpoint maps cleanly to the MITRE ATT&CK framework under the main Persistence tactic.
+
+    Technique: Create Account (T1136)
+
+    Sub-technique: Local Account (.001)
+
+    Answer: T1136.001
+
+Task 7: Interactive Session Closure Time
+
+To determine when the attacker's first manual interactive session concluded, filter the logs for termination clean-up events associated with Session 37.
+Bash
+
+grep -E "closed|Removed" auth.log | grep "session 37"
+
+The system log confirms the formal teardown of the environment:
+Mar  6 06:37:24 ip-172-31-35-28 systemd-logind[411]: Removed session 37.
+
+    Answer: 2024-03-06 06:37:24

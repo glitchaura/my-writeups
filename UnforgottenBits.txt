@@ -1,0 +1,123 @@
+picoCTF 2023 Forensic Writeup: UnforgottenBits (500 pts)
+
+
+Platform: Native Kali Linux Workspace
+Challenge Description
+
+    Download this disk image and find the flag.
+
+    Hint: There are no hints here, but there are plenty on the disk!
+
+Phase 1: Disk Layout Analysis & Partition Mapping
+
+The challenge starts with a compressed archive named disk.flag(2).img.gz. After decompressing it using gunzip, the layout of the storage blocks was mapped using the Sleuth Kit tool mmls:
+Bash
+
+$ gunzip 'disk.flag(2).img.gz'
+$ mmls 'disk.flag(2).img'
+
+Partition Table Map
+
+The Master Boot Record (MBR) schema revealed three distinct volume tracks on the system:
+Slot	Start Sector	End Sector	Total Length	Description
+002	0000002048	0000206847	0000204800	Linux Boot (0x83)
+003	0000206848	0000731135	0000524288	Linux Swap Space (0x82)
+004	0000731136	0002097151	0001366016	Linux Primary Root (0x83)
+
+The primary Linux target root filesystem begins exactly at sector offset 731136.
+Phase 2: Internal Directory Enumeration
+
+Using the calculated sector offset, the target root partition was listed using fls to map critical internal system folders:
+Bash
+
+$ fls -o 731136 'disk.flag(2).img'
+d/d 7130:       home
+d/d 7121:       etc
+d/d 7134:       root
+
+Stepping inside the user directory structure (/home, Inode: 7130), a local user workspace named yone was found hanging out at Inode 24:
+Bash
+
+$ fls -o 731136 'disk.flag(2).img' 24
+r/r 2362:       .ash_history
+d/d 2364:       notes
+d/d 2360:       Maildir
+d/d 2374:       irclogs
+d/d 2401:       .lynx
+d/d 2403:       gallery
+
+Forensic Indicators Found Inside the Home Profile
+
+    Maildir/cur: Contained deleted communications pointing to administrative adjustments (su root).
+
+    notes/3.txt: Contained a credential hint mentioning a memorable passphrase schema starting with the sequence "yasuoaatrox...".
+
+    irclogs/: Contained internet relay chat logs hinting that the user creates secure keys using a pattern based on four distinct elements/characters from their favorite game (League of Legends). Following the standard word-association philosophy outlined in XKCD 936, the fully assembled steganography key was computed to be:
+
+    yasuoaatroxashecassiopeia
+
+    gallery/ (Inode 2403): Contained several background bitmap images used for secure storage data hiding:
+
+Bash
+
+$ fls -o 731136 'disk.flag(2).img' 2403
+r/r 2404:       2.bmp
+r/r 2405:       3.bmp
+r/r 2406:       7.bmp
+r/r 2407:       1.bmp
+
+Phase 3: Artifact Carving & Flag Extraction
+
+The secure data hiding script used by the user nested an encrypted OpenSSL ledger block inside the asset file 7.bmp (Inode 2406). Furthermore, volatile trace data left inside unallocated blocks (the "Unforgotten Bits") revealed raw cryptographic parameters derived from a custom Golden Ratio (
+ϕ
+
+) number configuration stream.
+
+The exact low-level recovery and decryption pipeline was structured sequentially using terminal workflows:
+
+1
+Carve Image File
+SleuthKit icat
+
+Extract the raw data blocks corresponding to the hidden image asset direct from the image allocation map:
+Bash
+
+icat -o 731136 'disk.flag(2).img' 2406 > 7.bmp
+
+2
+Extract Steganographic Payload
+Steghide Layer
+
+Extract the embedded encrypted archive from the pixels using the calculated League of Legends champion string passphrase:
+Bash
+
+steghide extract -sf 7.bmp -p yasuoaatroxashecassiopeia -xf ledger.1.txt.enc
+
+3
+AES-256 Symmetric Decryption
+OpenSSL Layer
+
+Process the raw block with the recovered cipher properties (Salt, Key, and Initialization Vector) pulled from the unallocated memory bits:
+Bash
+
+openssl enc -aes-256-cbc -d -in ledger.1.txt.enc -out flag.txt -salt -S 2350e88cbeaf16c9 -K a9f86b874bd927057a05408d274ee3a88a83ad972217b81fdc2bb8e8ca8736da -iv 908458e48fc8db1c5a46f18f0feb119f
+
+4
+Read Extracted Flag
+Stdout
+
+Print the decrypted file content to grab the target submission token:
+Bash
+
+cat flag.txt
+
+Final Output Log
+Plaintext
+
+avidreader13    PAID    Les Mis, Dracula, Frankenstein, Swiss Family Robinson, Don Quixote, A Tale of Two Cities
+513u7h          PAID    Don Quixote
+masterOfSp1n    PAID    Swiss Family Robinson, A Tale of Two Cities
+AwolCoyote      PAID    Les Mis, Dracula
+picoCTF         UNPAID  picoCTF{f473_53413d_aa476d14}
+
+    Target Flag: picoCTF{f473_53413d_aa476d14}
