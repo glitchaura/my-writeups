@@ -1,0 +1,43 @@
+Professional Incident Report — Phishing URL
+Date: June 10, 2026
+Disclamer:This was an real phishing url and now it has been takedown the time when this repoert was made the url was active and was listed as valid phish on phish tank
+Executive summary
+
+    URL: https://kind-lavender-lemur.31-22-4-50.cpanel.site/bind/
+    Resolved IP: 31.22.4.50
+    Hostnames observed: kind-lavender-lemur.31-22-4-50.cpanel.site; sv10.byethost10.org; sv96.ifastnet.com
+    Classification: Confirmed phishing (PhishTank listing); community/AV flag present.
+    Responsible network: 31.22.4.0/24 (IFASTNET-NET-1) — origin AS34119 (WILDCARD-AS — Wildcard UK Limited, GB).
+    Primary abuse contacts: response@ifastnet.com (IfastNet / Wildcard maintenance); RIPE abuse: abuse@ripe.net.
+
+Evidence inventory
+    Whois / RIR excerpt for 31.22.4.0/24 (RIPE data; inetnum 31.22.4.0 - 31.22.4.255; org ORG-IFL7-RIPE; abuse role AR18776-RIPE; abuse-mailbox: response@ifastnet.com).
+    Community/scan summary for 31.22.4.50 (1/91 vendors flagged; community score; last analysis 3 days ago).
+    PhishTank listing: confirmed phishing.
+    DNSDumpster passive-DNS snapshot:
+        A records:
+            kind-lavender-lemur.31-22-4-50.cpanel.site → 31.22.4.50
+            sv10.byethost10.org → 31.22.4.50 (ASN 34119)
+        Network block: 31.22.4.0/24 — WILDCARD-AS (Wildcard UK Limited), GB
+        Open services observed: FTP (Pure-FTPd banner), HTTP (OpenResty / Nginx; title: "403 Forbidden")
+        Reverse-IP neighbor count: ~2,284 hosts on same IP block
+
+Technical findings
+
+    IP / Network
+        IP: 31.22.4.50 (31.22.4.0/24)
+        Netname: IFASTNET-NET-1
+        Origin ASN: AS34119 (Wildcard UK Limited)
+        RIR: RIPE NCC allocation; maintainer: WILDCARD-MNT; abuse role: AR18776-RIPE; abuse-mailbox: response@ifastnet.com
+    Host & services
+        Web server stack: Nginx / OpenResty (returns HTTP 403 on direct request)
+        FTP service observed (Pure-FTPd banner) — indicates shared hosting environment
+        TLS certificate(s): Let's Encrypt certificate observed (subject CN=sv96.ifastnet.com; validity 2026-04-19 → 2026-07-18)
+    Reputation
+        PhishTank: URL listed as valid phishing
+        Community/AV: 1/91 vendors flagged; community detection present
+        Reverse-IP hosting: high neighbor count (~2,284), consistent with shared/cheap hosting commonly abused for throwaway phishing pages
+
+Impact
+
+    Active phishing page impersonating unknown target(s) — risk: credential theft, fraud, harm to users and brand(s) impersonated
