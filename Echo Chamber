@@ -1,0 +1,39 @@
+# Challenge Writeup: Echo Chamber
+
+## Challenge Overview
+* **Name:** Echo Chamber
+* **Category:** OSINT
+* **Points:** 500
+* **Author:** CYB3RFY
+
+### Description
+A forum user going by `rainyhike22` posted a comment referencing a real-world outdoor activity they recently logged[cite: 2]. The goal is to analyze the attached forum thread, identify that specific activity, and find its unique public identifying code[cite: 2].
+
+### Provided Assets
+* `player_brief.md`[cite: 2]
+* `forum_thread.html`[cite: 2]
+
+---
+
+## Solution Steps
+
+### 1. Identify the Target Clue
+Reviewing `forum_thread.html`[cite: 2], we find a simulated subreddit thread for `r/SeattleLocal`[cite: 1]. The target user, `rainyhike22`, posts the following comment[cite: 1]:
+
+> "ugh, aerocascadia flight 1142 delayed AGAIN, another 3 hour wait in the terminal lol. at least it's not pouring like last tuesday though. **anyway finally logged that tricky FTF on the son of gasworks scrabble cache, took me 3 tries lmao**"[cite: 1]
+
+### 2. Decode the Activity Jargon
+The terminology used points directly to **Geocaching**:
+* **FTF:** "First to Find" (a common milestone in geocaching).
+* **Cache:** Short for a geocache container.
+* **Son of gasworks scrabble cache:** The exact name of the geocache listing[cite: 1].
+
+### 3. Retrieve the Unique Public Identifying Code
+Since the forum is centered around Seattle[cite: 1], searching for the geocache named **"Son of Gasworks Scrabble Cache"** located near Gas Works Park in Seattle, WA, reveals its official entry on Geocaching.com. 
+
+Every geocache has a unique, public alphanumeric "GC Code". The GC code for this specific cache is **GCK4GH**.
+
+### 4. Format the Flag
+Following the required lowercase format `TBCTF{code-in-lowercase}`[cite: 2]:
+
+**Flag:** `TBCTF{gck4gh}`
