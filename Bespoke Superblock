@@ -1,0 +1,46 @@
+
+Challenge Name: Bespoke Superblock
+TraceeBash CTF
+Category: Forensics / Reverse Engineering
+Overview
+
+We were provided with a disk image (challenge.img) and a partially corrupted python script (parser.py). Standard forensic tools like mmls and fls failed to parse the image because it utilized a custom filesystem structure. The objective was to reverse-engineer the custom filesystem, extract the data blocks, and decode the hidden flag.  
+Step 1: Investigating the Filesystem
+
+Analyzing the provided parser.py revealed that the filesystem started at offset 0x1000 with the magic bytes TBFS. The script parsed a 16-byte custom superblock using the struct format <4s H I I 2x, which gave us the following metadata:  
+
+    Magic: TBFS
+
+    Block Size: 512
+
+    Total Blocks: 8
+
+    Flag Inode: 0x1020
+
+Step 2: Extracting the Raw Data
+
+The parser.py script was designed to jump to the flag_inode and read 4-byte chunks across the 8 blocks. By reading 4 bytes at offset = flag_inode + (i * block_size), we successfully extracted the raw byte string.  
+
+However, printing this raw string resulted in corrupted output:
+b'tbctf[SPAT\x11AL\x7fAWARE\x7fXOR\x7f\x11\x13\x13\x17]'
+Step 3: Breaking the XOR Obfuscation
+
+The corrupted flag text contained a massive hint: SPATIAL AWARE XOR. The script also warned of high entropy, suggesting an encoding layer.  
+
+Looking closely at the corrupted string prefix tbctf[, we know it should translate to standard flag formatting like TBCTF{.
+By comparing the ASCII values of the corrupted characters with the expected plaintext, a clear pattern emerged:
+
+    t (0x74) → T (0x54)
+
+    [ (0x5B) → { (0x7B)
+
+    \x11 (0x11) → 1 (0x31)
+
+    \x7f (0x7F) → _ (0x5F)
+
+Every single character was simply XORed by a static hexadecimal value of 0x20. This operation flipped the casing of the letters and transformed the non-printable hex characters into numbers and underscores.
+Step 4: The Final Solution
+
+Applying a flat ^ 0x20 operation to the entire raw byte string decrypted it instantly, revealing the final flag.
+
+Flag: TBCTF{spat1al_aware_xor_1337}
