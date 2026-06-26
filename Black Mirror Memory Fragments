@@ -1,0 +1,21 @@
+# Black Mirror Memory Fragments — Forensics Writeup
+
+**Challenge:** Black Mirror Memory Fragments  
+**CTF:** RIFFHACK — Black Market Break-in  
+**Category:** Forensics  
+**Platform:** Smithereen Recovery 3.2 Export (Mobile Backup Forensics)
+
+---
+
+## Challenge Description
+
+> A corrupted mobile backup is all that remains of a wiped conversation. Sort the real evidence from the noise, reconstruct what actually happened, and recover the hidden key.
+
+We are given a backup export with two folders of interest:
+
+- `app_export/` — real conversation artifacts (SQLite database, cached attachment chunks, metadata)
+- `decoy/` — single `quarantine_note.txt` (misleading noise)
+
+---
+
+## Initial Reconnaissance
